@@ -4,13 +4,6 @@ import {modifyBlockAsTree, transformBlocksToTree, TransformerContext} from "./bl
 
 const settings: SettingSchemaDesc[] = [
     {
-        key: "combineBlock",
-        title: 'Whether to combine block',
-        type: "boolean",
-        default: false,
-        description: ''
-    },
-    {
         key: "removeEmptyLine",
         title: 'Whether to remove empty line',
         type: "boolean",
@@ -25,7 +18,7 @@ const settings: SettingSchemaDesc[] = [
         description: ''
     },
     {
-        key: "transform shortcut",
+        key: "transformShortcut",
         title: 'Keyboard shortcut to transform block',
         type: "string",
         default: "ctrl+h",
@@ -39,6 +32,8 @@ async function main() {
         await logseq.UI.showMsg('start block transformer')
         let transformerContext = new TransformerContext();
         transformerContext.transformAction = 'split'
+        transformerContext.splitCodeBlock = logseq.settings?.splitCodeBlock;
+        transformerContext.removeEmptyLine = logseq.settings?.removeEmptyLine;
 
         // exit editing mode
         // editing mode modify block have bug:cannot update when cursor is at the end
@@ -82,7 +77,7 @@ async function main() {
     }
 
     logseq.provideModel(createModel());
-    const triggerIconName = "ti-clipboard";
+    const triggerIconName = "ti-transform";
 
     logseq.App.registerUIItem("toolbar", {
         key: "transformer-plugin-button",
@@ -92,10 +87,9 @@ async function main() {
     </a>
   `
     });
-    await logseq.UI.showMsg('enable for block transformer')
     logseq.App.registerCommandShortcut({
         mode: 'global',
-        binding: 'ctrl+h',
+        binding: logseq.settings?.transformShortcut,
     }, async () => {
         await transformAction();
     })

@@ -1,0 +1,28 @@
+{
+  "name": "logseq-plugin-block-transformer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.html",
+  "targets": {
+    "main": false
+  },
+  "default": "dist/index.html",
+  "scripts": {
+    "dev": "parcel ./index.html --public-url ./",
+    "build": "parcel build --public-url . --no-source-maps index.html"
+  },
+  "keywords": [],
+  "author": "@JuniverseCoder",
+  "license": "MIT",
+  "devDependencies": {
+    "@logseq/libs": "^0.0.15",
+    "@types/lodash": "^4.14.198",
+    "parcel": "^2.9.3"
+  },
+  "logseq": {
+    "id": "logseq-plugin-block-transformer"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}

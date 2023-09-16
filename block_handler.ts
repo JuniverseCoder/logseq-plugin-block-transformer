@@ -209,6 +209,17 @@ export async function splitBlocksToTree(blockEntities: BlockEntity[], transforme
                         };
                         is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
                     }
+                    // handle normal list
+                    else if (/^\s*-\s/.test(line)) {
+                        let blockTreeNode = {
+                            refBlock: undefined,
+                            content: line.replace(/^\s*-\s/, ''),
+                            children: [],
+                            properties: {},
+                            blankLevel: blankLevel
+                        };
+                        is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
+                    }
                     // handle normal line
                     else {
                         let blockTreeNode = {

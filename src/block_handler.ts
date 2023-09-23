@@ -339,3 +339,52 @@ async function getBlockEntityChildren(blockEntity: BlockEntity): Promise<BlockEn
     }
     return children
 }
+
+export async function getSelectedBlocks() {
+    // exit editing mode
+    // editing mode modify block have bug:cannot update when cursor is at the end
+    let isEditing = await logseq.Editor.checkEditing();
+    console.log(isEditing)
+    if (isEditing) {
+        await logseq.Editor.exitEditingMode(true);
+        // sleep to prevent ui bug
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    const selected = await logseq.Editor.getSelectedBlocks();
+    console.log(selected)
+    let originBlocks: BlockEntity[] = [];
+    if (selected && selected.length > 0) {
+        // construct tree
+        let blockMap: Map<number, BlockEntity> = new Map<number, BlockEntity>();
+        for (let blockEntity of selected) {
+            if (blockMap.has(blockEntity.parent.id)) {
+                let parentBlockEntity = blockMap.get(blockEntity.parent.id);
+                if (parentBlockEntity) {
+                    if (!parentBlockEntity.children) {
+                        parentBlockEntity.children = [];
+                    }
+                    parentBlockEntity.children.push(blockEntity)
+                    blockMap.set(blockEntity.id, blockEntity);
+                }
+            } else {
+                blockMap.set(blockEntity.id, blockEntity);
+                originBlocks.push(blockEntity)
+            }
+        }
+    }
+    return originBlocks;
+}
+
+export async function transformAction(originBlocks: BlockEntity[]) {
+    await logseq.UI.showMsg('start block transformer')
+    let transformerContext = new TransformerContext();
+    transformerContext.transformAction = 'split'
+    transformerContext.splitCodeBlock = logseq.settings?.splitCodeBlock;
+    transformerContext.removeEmptyLine = logseq.settings?.removeEmptyLine;
+
+    let blockTreeNodes = await transformBlocksToTree(originBlocks, transformerContext);
+    console.log(blockTreeNodes);
+    console.log(originBlocks);
+    await modifyBlockAsTree(originBlocks, blockTreeNodes);
+}

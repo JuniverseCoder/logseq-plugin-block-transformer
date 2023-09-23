@@ -1,0 +1,35 @@
+/* 设置 body 和 html 的高度为 100% 以确保充分利用整个视口 */
+body, html {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 设置要居中的 div 的样式 */
+.center {
+    text-align: center; /* 如果要居中文本内容 */
+    /*padding: 20px; !* 可选：添加一些内边距 *!*/
+    background-color: #f0f0f0; /* 可选：添加背景颜色 */
+}
+
+.transform_button {
+    color: #fff;
+    background-color:#1677ff;
+    box-shadow: 0 2px 0 rgba(5,145,255,0.1);
+    height: 80px;
+    font-size: 40px;
+    margin: 20px;
+    white-space: pre;
+    width: fit-content;
+    padding: 10px;
+    display: flex;
+    text-align: center;
+    align-items: center;
+}
+
+.underline-and-enlarge {
+    text-decoration: underline;
+    font-size: 60px;
+}

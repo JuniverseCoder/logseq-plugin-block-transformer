@@ -21,7 +21,7 @@ const settings: SettingSchemaDesc[] = [
         key: "transformShortcut",
         title: 'Keyboard shortcut to transform block',
         type: "string",
-        default: "ctrl+h",
+        default: "ctrl+t",
         description: ''
     }
 ];
@@ -40,6 +40,8 @@ async function main() {
         let isEditing = await logseq.Editor.checkEditing();
         if (isEditing) {
             await logseq.Editor.exitEditingMode(true);
+            // sleep to prevent ui bug
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         const selected = await logseq.Editor.getSelectedBlocks();

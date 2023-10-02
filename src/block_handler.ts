@@ -199,10 +199,10 @@ export async function splitBlocksToTree(blockEntities: BlockEntity[], transforme
                         }
                     }
                     // handle order list
-                    else if (/^\s*[0-9]+\.\s/.test(line)) {
+                    else if (/^\s*[0-9]+[.、．]\s*/.test(line)) {
                         let blockTreeNode = {
                             refBlock: undefined,
-                            content: line.replace(/^\s*[0-9]+\.\s/, ''),
+                            content: line.replace(/^\s*[0-9]+[.、．]\s*/, ''),
                             children: [],
                             properties: {'logseq.order-list-type': 'number'},
                             blankLevel: blankLevel
@@ -276,7 +276,7 @@ export async function modifyBlockAsTree(originBlocks: BlockEntity[], blockTreeNo
 }
 
 async function modifyBlockAsTreeModifyHelper(blockTreeNode: BlockTreeNode, visitContext: VisitContext) {
-    let current_block: BlockEntity | undefined = undefined;
+    let current_block: BlockEntity | undefined;
     // move and update block
     if (blockTreeNode.refBlock?.uuid !== undefined) {
         // move block to right position

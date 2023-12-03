@@ -205,7 +205,7 @@ export async function splitBlocksToTree(blockEntities: BlockEntity[], transforme
                 }
                 let blockTreeNode = {
                     refBlock: undefined,
-                    content: line.replace(/^\s*[0-9]+\.\s/, ''),
+                    content: line.replace(/^\s*[0-9]+[.、．]\s*/, ''),
                     children: [],
                     properties: blockProperties,
                     blankLevel: blankLevel

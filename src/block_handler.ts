@@ -286,7 +286,7 @@ async function headerModeAction(blockEntities: BlockEntity[], transformerContext
 
         // is header
         let content = getContent(blockEntity);
-        let is_header = !/[\r\n]/.test(content) && (/^\s*#+\s/.test(content) || /^\s*\*\*.*\*\*/.test(content));
+        let is_header = !/[\r\n]/.test(content) && (/^\s*#+\s/.test(content) || /^\s*\*\*.*\*\*[,.:;!?:\s，。：；！？：]*$/.test(content));
         if (is_header) {
             let newContent = content;
             newContent = newContent.replace(/^\s*#+\s/, "");
@@ -301,11 +301,14 @@ async function headerModeAction(blockEntities: BlockEntity[], transformerContext
             for (let i = 0; i < headerLevel; i++) {
                 newContent = '#' + newContent;
             }
-            await logseq.Editor.updateBlock(blockEntity.uuid, newContent, {properties: convertBlockProperties(blockEntity.properties)});
+            if (content !== newContent) {
+                await logseq.Editor.updateBlock(blockEntity.uuid, newContent, {properties: convertBlockProperties(blockEntity.properties)});
+            }
         }
         let children = await getBlockEntityChildren(blockEntity);
         await headerModeAction(children, transformerContext, headerLevel + 1);
     }
+    return blockEntities;
 }
 
 
@@ -327,7 +330,13 @@ async function modifyBlockAsTree(originBlocks: BlockEntity[], blockTreeNodes: Bl
             await modifyBlockAsTreeDeleteHelper(originBlock, visitContext);
         }
     }
-
+    let newSelectedBlockEntity = [];
+    for (let blockTreeNode of blockTreeNodes) {
+        if (blockTreeNode.refBlock) {
+            newSelectedBlockEntity.push(blockTreeNode.refBlock);
+        }
+    }
+    return newSelectedBlockEntity;
 }
 
 async function modifyBlockAsTreeModifyHelper(blockTreeNode: BlockTreeNode, visitContext: VisitContext) {
@@ -374,6 +383,7 @@ async function modifyBlockAsTreeModifyHelper(blockTreeNode: BlockTreeNode, visit
     }
     visitContext.parentBlock = lastParentBlock;
     visitContext.lastVisitedBlock = current_block;
+    blockTreeNode.refBlock = current_block;
 }
 
 async function modifyBlockAsTreeDeleteHelper(blockEntity: BlockEntity, visitContext: VisitContext) {
@@ -460,9 +470,10 @@ async function buildBlockEntityTree(blockEntity: BlockEntity | BlockUUIDTuple, v
     newBlockEntity.children = newChildren;
     return newBlockEntity;
 }
+
 async function splitModeAction(selectedBlockEntities: BlockEntity[], transformerContext: TransformerContext) {
     let blockTreeNodes = await splitBlocksToTree(selectedBlockEntities, transformerContext)
-    await modifyBlockAsTree(selectedBlockEntities, blockTreeNodes);
+    return await modifyBlockAsTree(selectedBlockEntities, blockTreeNodes);
 }
 
 export async function transformAction(selectedBlockEntities: BlockEntity[]) {
@@ -484,7 +495,7 @@ export async function transformAction(selectedBlockEntities: BlockEntity[]) {
             await headerModeAction(selectedBlockEntities, transformerContext)
             break;
         case 'split+header':
-            await splitModeAction(selectedBlockEntities, transformerContext);
+            selectedBlockEntities = await splitModeAction(selectedBlockEntities, transformerContext);
             selectedBlockEntities = await optimizeSelectedBlocks(selectedBlockEntities);
             await headerModeAction(selectedBlockEntities, transformerContext)
             break;

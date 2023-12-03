@@ -21,6 +21,7 @@ export class TransformerContext {
     public transformAction = '';
     public removeEmptyLine = true;
     public splitCodeBlock = true;
+    public orderedToNonOrdered = false;
 }
 
 function camelToKebab(str: string) {
@@ -129,110 +130,109 @@ export async function splitBlocksToTree(blockEntities: BlockEntity[], transforme
                     }
                     is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
                 }
-            } else {
-                if (!completeCodeBlock) {
-                    const position = line.indexOf('```')
-                    if (position >= 0) {
-                        lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content += '\n' + line.substring(0, position + 3)
+            } else if (!completeCodeBlock) {
+                const position = line.indexOf('```')
+                if (position >= 0) {
+                    lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content += '\n' + line.substring(0, position + 3)
 
 
-                        // remove heading blank
-                        let blockLines = lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content.split('\n');
-                        // get the min blank num
-                        let minBlankNum = blockLines.length;
-                        for (let j = 1; j < blockLines.length - 1; j++) {
-                            let blockLine = blockLines[j];
-                            let blankNum = 0;
-                            for (let k = 0; k < blockLine.length; k++) {
-                                if (blockLine[k] === ' ' || blockLine[k] === '\t') {
-                                    blankNum += 1;
-                                } else {
-                                    break;
-                                }
-                            }
-                            minBlankNum = Math.min(minBlankNum, blankNum);
-                        }
-                        // handle remove heading blank
-                        let content = '';
-                        for (let j = 0; j < blockLines.length; j++) {
-                            if (j == 0) {
-                                content += blockLines[j].trim();
-                            } else if (j == blockLines.length - 1) {
-                                content += '\n' + blockLines[j].trim();
+                    // remove heading blank
+                    let blockLines = lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content.split('\n');
+                    // get the min blank num
+                    let minBlankNum = blockLines.length;
+                    for (let j = 1; j < blockLines.length - 1; j++) {
+                        let blockLine = blockLines[j];
+                        let blankNum = 0;
+                        for (let k = 0; k < blockLine.length; k++) {
+                            if (blockLine[k] === ' ' || blockLine[k] === '\t') {
+                                blankNum += 1;
                             } else {
-                                content += '\n' + blockLines[j].substring(minBlankNum)
+                                break;
                             }
                         }
-                        lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content = content;
-
-
-                        blankLevel = lastBlockTreeNodes[lastBlockTreeNodes.length - 1].blankLevel
-                        let line1 = line.substring(position + 3);
-                        if (line1.trim().length > 0) {
-                            let blockTreeNode = {
-                                refBlock: undefined,
-                                content: line1,
-                                children: [],
-                                properties: {},
-                                blankLevel: blankLevel
-                            }
-                            is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
-                        }
-                        completeCodeBlock = true;
-                    } else {
-                        lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content += '\n' + line
+                        minBlankNum = Math.min(minBlankNum, blankNum);
                     }
-                } else {
-                    if (line.substring(blankNum, blankNum + 3) === '```') {
-                        completeCodeBlock = false;
-                        if (!transformerContext.splitCodeBlock) {
-                            lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content += '\n' + line
+                    // handle remove heading blank
+                    let content = '';
+                    for (let j = 0; j < blockLines.length; j++) {
+                        if (j == 0) {
+                            content += blockLines[j].trim();
+                        } else if (j == blockLines.length - 1) {
+                            content += '\n' + blockLines[j].trim();
                         } else {
-                            let blockTreeNode = {
-                                refBlock: undefined,
-                                content: line,
-                                children: [],
-                                properties: {},
-                                blankLevel: blankLevel
-                            }
-                            is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
+                            content += '\n' + blockLines[j].substring(minBlankNum)
                         }
                     }
-                    // handle order list
-                    else if (/^\s*[0-9]+\.\s/.test(line)) {
-                        let blockTreeNode = {
-                            refBlock: undefined,
-                            content: line.replace(/^\s*[0-9]+\.\s/, ''),
-                            children: [],
-                            properties: {'logseq.order-list-type': 'number'},
-                            blankLevel: blankLevel
-                        };
-                        is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
-                    }
-                    // handle normal list
-                    else if (/^\s*-\s/.test(line)) {
-                        let blockTreeNode = {
-                            refBlock: undefined,
-                            content: line.replace(/^\s*-\s/, ''),
-                            children: [],
-                            properties: {},
-                            blankLevel: blankLevel
-                        };
-                        is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
-                    }
-                    // handle normal line
-                    else {
-                        let blockTreeNode = {
-                            refBlock: undefined,
-                            content: line,
-                            children: [],
-                            properties: {},
-                            blankLevel: blankLevel
-                        };
-                        is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
-                    }
-                }
+                    lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content = content;
 
+
+                    blankLevel = lastBlockTreeNodes[lastBlockTreeNodes.length - 1].blankLevel
+                    let line1 = line.substring(position + 3);
+                    if (line1.trim().length > 0) {
+                        let blockTreeNode = {
+                            refBlock: undefined,
+                            content: line1,
+                            children: [],
+                            properties: {},
+                            blankLevel: blankLevel
+                        }
+                        is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
+                    }
+                    completeCodeBlock = true;
+                } else {
+                    lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content += '\n' + line
+                }
+            } else if (line.substring(blankNum, blankNum + 3) === '```') {
+                completeCodeBlock = false;
+                if (!transformerContext.splitCodeBlock) {
+                    lastBlockTreeNodes[lastBlockTreeNodes.length - 1].content += '\n' + line
+                } else {
+                    let blockTreeNode = {
+                        refBlock: undefined,
+                        content: line,
+                        children: [],
+                        properties: {},
+                        blankLevel: blankLevel
+                    }
+                    is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
+                }
+            }
+            // handle order list
+            else if (/^\s*[0-9]+\.\s/.test(line)) {
+                let blockProperties: { [key: string]: string } = {};
+                if (!transformerContext.orderedToNonOrdered) {
+                    blockProperties['logseq.order-list-type'] = 'number';
+                }
+                let blockTreeNode = {
+                    refBlock: undefined,
+                    content: line.replace(/^\s*[0-9]+\.\s/, ''),
+                    children: [],
+                    properties: blockProperties,
+                    blankLevel: blankLevel
+                };
+                is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
+            }
+            // handle normal list
+            else if (/^\s*-\s/.test(line)) {
+                let blockTreeNode = {
+                    refBlock: undefined,
+                    content: line.replace(/^\s*-\s/, ''),
+                    children: [],
+                    properties: {},
+                    blankLevel: blankLevel
+                };
+                is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
+            }
+            // handle normal line
+            else {
+                let blockTreeNode = {
+                    refBlock: undefined,
+                    content: line,
+                    children: [],
+                    properties: {},
+                    blankLevel: blankLevel
+                };
+                is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
             }
         }
         // append empty line for empty result
@@ -277,6 +277,16 @@ export async function modifyBlockAsTree(originBlocks: BlockEntity[], blockTreeNo
 
 async function modifyBlockAsTreeModifyHelper(blockTreeNode: BlockTreeNode, visitContext: VisitContext) {
     let current_block: BlockEntity | undefined = undefined;
+    // insert empty block
+    if (blockTreeNode.refBlock === undefined && visitContext.lastVisitedBlock?.uuid) {
+        let newBlock = await logseq.Editor.insertBlock(visitContext.lastVisitedBlock?.uuid, blockTreeNode.content, {
+            sibling: visitContext.lastVisitedBlock?.uuid !== visitContext.parentBlock?.uuid,
+            properties: blockTreeNode.properties
+        }) || undefined;
+        blockTreeNode.refBlock = newBlock?.uuid && await logseq.Editor.getBlock(newBlock.uuid) || undefined;
+        console.debug("blockTreeNode.refBlock", blockTreeNode.refBlock)
+    }
+
     // move and update block
     if (blockTreeNode.refBlock?.uuid !== undefined) {
         // move block to right position
@@ -292,21 +302,15 @@ async function modifyBlockAsTreeModifyHelper(blockTreeNode: BlockTreeNode, visit
         }
         // update block content and properties
         if (blockTreeNode.refBlock.content !== blockTreeNode.content || !isEqual(blockTreeNode.refBlock.properties, blockTreeNode.properties)) {
+            console.debug("update block", blockTreeNode.refBlock, blockTreeNode.content, blockTreeNode.properties)
             await logseq.Editor.updateBlock(blockTreeNode.refBlock?.uuid, blockTreeNode.content, {properties: blockTreeNode.properties});
         }
         current_block = await logseq.Editor.getBlock(blockTreeNode.refBlock?.uuid) || undefined;
         console.log(current_block?.content)
     }
-    // insert block
-    else {
-        // @ts-ignore
-        current_block = await logseq.Editor.insertBlock(visitContext.lastVisitedBlock?.uuid, blockTreeNode.content, {
-            sibling: visitContext.lastVisitedBlock?.uuid !== visitContext.parentBlock?.uuid,
-            properties: blockTreeNode.properties
-        });
-    }
+
     if (current_block?.uuid) {
-        visitContext.visitedBlockUuids.add(current_block.uuid);
+        visitContext.visitedBlockUuids.add(current_block?.uuid);
     }
     visitContext.lastVisitedBlock = current_block;
     let lastParentBlock = visitContext.parentBlock;
@@ -382,6 +386,7 @@ export async function transformAction(originBlocks: BlockEntity[]) {
     transformerContext.transformAction = 'split'
     transformerContext.splitCodeBlock = logseq.settings?.splitCodeBlock;
     transformerContext.removeEmptyLine = logseq.settings?.removeEmptyLine;
+    transformerContext.orderedToNonOrdered = logseq.settings?.orderedToNonOrdered;
 
     let blockTreeNodes = await transformBlocksToTree(originBlocks, transformerContext);
     console.log(blockTreeNodes);

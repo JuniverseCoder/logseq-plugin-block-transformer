@@ -24,6 +24,13 @@ let settings: SettingSchemaDesc[] = [
         description: ''
     },
     {
+        key: "orderedToNonOrdered",
+        title: 'Whether to convert ordered list to non-ordered list',
+        type: "boolean",
+        default: false,
+        description: ''
+    },
+    {
         key: "transformShortcut",
         title: 'Keyboard shortcut to transform block',
         type: "string",

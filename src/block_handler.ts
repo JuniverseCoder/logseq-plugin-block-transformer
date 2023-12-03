@@ -1,4 +1,4 @@
-import {BlockUUID} from "@logseq/libs/dist/LSPlugin";
+import {BlockUUID, BlockUUIDTuple} from "@logseq/libs/dist/LSPlugin";
 import {BlockEntity} from "@logseq/libs/dist/LSPlugin.user";
 import {isEqual} from 'lodash';
 
@@ -18,26 +18,28 @@ class VisitContext {
 
 
 export class TransformerContext {
-    public transformAction = '';
+    public transformMode = 'split';
     public removeEmptyLine = true;
     public splitCodeBlock = true;
     public orderedToNonOrdered = false;
+    public removeTailPunctuation: boolean = true;
 }
 
 function camelToKebab(str: string) {
     return str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
-export async function transformBlocksToTree(blockEntities: BlockEntity[], transformerContext: TransformerContext): Promise<BlockTreeNode[]> {
-    switch (transformerContext.transformAction) {
-        case 'split':
-            return await splitBlocksToTree(blockEntities, transformerContext)
-        default:
-            return []
+function convertBlockProperties(blockProperties: Record<string, any> | undefined): Record<string, any> {
+    let properties: Record<string, any> = {};
+    if (blockProperties) {
+        for (let propertiesKey in blockProperties) {
+            properties[camelToKebab(propertiesKey)] = blockProperties[propertiesKey];
+        }
     }
+    return properties
 }
 
-export async function splitBlocksToTree(blockEntities: BlockEntity[], transformerContext: TransformerContext): Promise<BlockTreeNode[]> {
+async function splitBlocksToTree(blockEntities: BlockEntity[], transformerContext: TransformerContext): Promise<BlockTreeNode[]> {
     let outputBlockTreeNodes: BlockTreeNode[] = [];
 
     function appendNewBlockTreeNode(blockTreeNode: BlockTreeNode, is_first: boolean, blockEntity: BlockEntity, lastBlockTreeNodes: BlockTreeNode[]) {
@@ -45,11 +47,7 @@ export async function splitBlocksToTree(blockEntities: BlockEntity[], transforme
             is_first = false;
             blockTreeNode.refBlock = blockEntity;
             // inherent refBlock properties
-            if (blockEntity.properties) {
-                for (let propertiesKey in blockEntity.properties) {
-                    blockTreeNode.properties[camelToKebab(propertiesKey)] = blockEntity.properties[propertiesKey];
-                }
-            }
+            blockTreeNode.properties = convertBlockProperties(blockEntity.properties);
         }
         // remove lower blank level
         for (let j = lastBlockTreeNodes.length - 1; j >= 0; j--) {
@@ -72,13 +70,7 @@ export async function splitBlocksToTree(blockEntities: BlockEntity[], transforme
     for (let blockEntity of blockEntities) {
         let is_first = true;
         let lastBlockTreeNodes: BlockTreeNode[] = [];
-        let lines = blockEntity.content.split(/\r\n|\n|\r/);
-        let propertyStringSet: Set<string> = new Set();
-        if (blockEntity.properties) {
-            for (let propertiesKey in blockEntity.properties) {
-                propertyStringSet.add(`${camelToKebab(propertiesKey)}:: ${blockEntity.properties[propertiesKey]}`)
-            }
-        }
+        let lines = getContent(blockEntity).split(/\r\n|\n|\r/);
 
 
         let completeCodeBlock = true;
@@ -101,10 +93,6 @@ export async function splitBlocksToTree(blockEntities: BlockEntity[], transforme
             }
             // filter empty line
             if (blankNum == line.length && transformerContext.removeEmptyLine) {
-                continue;
-            }
-            // filter property line
-            if (propertyStringSet.has(line)) {
                 continue;
             }
 
@@ -255,7 +243,73 @@ export async function splitBlocksToTree(blockEntities: BlockEntity[], transforme
     return outputBlockTreeNodes;
 }
 
-export async function modifyBlockAsTree(originBlocks: BlockEntity[], blockTreeNodes: BlockTreeNode[]) {
+async function getHeaderLevelByParent(blockEntity: BlockEntity): Promise<number> {
+    let headerLevel = 1;
+    let currentBlockEntity = blockEntity;
+    while (currentBlockEntity.parent) {
+        let parentBlockEntity = await logseq.Editor.getBlock(currentBlockEntity.parent.id);
+        if (!parentBlockEntity) {
+            return headerLevel;
+        }
+        let match = parentBlockEntity.content.match(/^(#+)\s/);
+        if (match) {
+            headerLevel = match[1].length + 1;
+            return headerLevel;
+        }
+        currentBlockEntity = parentBlockEntity;
+    }
+    return headerLevel;
+}
+
+function getContent(blockEntity: BlockEntity) {
+    if (!blockEntity.properties) {
+        return blockEntity.content
+    }
+    let propertiesLines: string[] = []
+    Object.entries(blockEntity.properties).forEach(([key, value]) => {
+        propertiesLines.push(camelToKebab(key) + ':: ')
+    })
+    let lines = blockEntity.content.split(/\r\n|\n|\r/);
+    // exclude properties lines by prefix
+    lines = lines.filter(line =>
+        !propertiesLines.some(propertyLine => line.startsWith(propertyLine))
+    );
+    return lines.join('\n')
+}
+
+
+async function headerModeAction(blockEntities: BlockEntity[], transformerContext: TransformerContext, headerLevel = -1) {
+    for (let blockEntity of blockEntities) {
+        if (headerLevel < 0) {
+            headerLevel = await getHeaderLevelByParent(blockEntity);
+        }
+
+        // is header
+        let content = getContent(blockEntity);
+        let is_header = !/[\r\n]/.test(content) && (/^\s*#+\s/.test(content) || /^\s*\*\*.*\*\*/.test(content));
+        if (is_header) {
+            let newContent = content;
+            newContent = newContent.replace(/^\s*#+\s/, "");
+            newContent = newContent.replace(/^\s*\*\*(.*)\*\*/, "$1");
+
+            // remove tail punctuation
+            if (transformerContext.removeTailPunctuation) {
+                newContent = newContent.replace(/[,.:;!?:\s，。：；！？：]*$/, "");
+            }
+            // add header by header level
+            newContent = " " + newContent.trim();
+            for (let i = 0; i < headerLevel; i++) {
+                newContent = '#' + newContent;
+            }
+            await logseq.Editor.updateBlock(blockEntity.uuid, newContent, {properties: convertBlockProperties(blockEntity.properties)});
+        }
+        let children = await getBlockEntityChildren(blockEntity);
+        await headerModeAction(children, transformerContext, headerLevel + 1);
+    }
+}
+
+
+async function modifyBlockAsTree(originBlocks: BlockEntity[], blockTreeNodes: BlockTreeNode[]) {
     let visitContext: VisitContext = {
         parentBlock: undefined,
         lastVisitedBlock: undefined,
@@ -267,7 +321,8 @@ export async function modifyBlockAsTree(originBlocks: BlockEntity[], blockTreeNo
     // delete unvisited blocks
     for (let originBlock of originBlocks) {
         if (!visitContext.visitedBlockUuids.has(originBlock.uuid)) {
-            await logseq.Editor.deleteBlock(originBlock.uuid);
+            console.log("delete block", originBlock)
+            await logseq.Editor.removeBlock(originBlock.uuid);
         } else {
             await modifyBlockAsTreeDeleteHelper(originBlock, visitContext);
         }
@@ -306,7 +361,6 @@ async function modifyBlockAsTreeModifyHelper(blockTreeNode: BlockTreeNode, visit
             await logseq.Editor.updateBlock(blockTreeNode.refBlock?.uuid, blockTreeNode.content, {properties: blockTreeNode.properties});
         }
         current_block = await logseq.Editor.getBlock(blockTreeNode.refBlock?.uuid) || undefined;
-        console.log(current_block?.content)
     }
 
     if (current_block?.uuid) {
@@ -325,7 +379,8 @@ async function modifyBlockAsTreeModifyHelper(blockTreeNode: BlockTreeNode, visit
 async function modifyBlockAsTreeDeleteHelper(blockEntity: BlockEntity, visitContext: VisitContext) {
     // delete block
     if (!visitContext.visitedBlockUuids.has(blockEntity.uuid)) {
-        await logseq.Editor.deleteBlock(blockEntity.uuid);
+        console.log("delete block", blockEntity)
+        await logseq.Editor.removeBlock(blockEntity.uuid);
     }
     let children = await getBlockEntityChildren(blockEntity);
     for (let child of children) {
@@ -344,51 +399,96 @@ async function getBlockEntityChildren(blockEntity: BlockEntity): Promise<BlockEn
     return children
 }
 
+async function optimizeSelectedBlocks(originSelectedBlocks: Array<BlockEntity> | null) {
+    let selectedBlocks: BlockEntity[] = [];
+    if (originSelectedBlocks && originSelectedBlocks.length > 0) {
+        let visitSet = new Set<string>();
+        // construct tree
+        for (let blockEntity of originSelectedBlocks) {
+            let newBlockEntity = await logseq.Editor.getBlock(blockEntity.id);
+            newBlockEntity = await buildBlockEntityTree(blockEntity, visitSet);
+            if (newBlockEntity) {
+                selectedBlocks.push(newBlockEntity);
+            }
+        }
+    }
+    return selectedBlocks;
+}
+
 export async function getSelectedBlocks() {
     // exit editing mode
     // editing mode modify block have bug:cannot update when cursor is at the end
     let isEditing = await logseq.Editor.checkEditing();
-    console.log(isEditing)
     if (isEditing) {
         await logseq.Editor.exitEditingMode(true);
         // sleep to prevent ui bug
         await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    const selected = await logseq.Editor.getSelectedBlocks();
-    console.log(selected)
-    let originBlocks: BlockEntity[] = [];
-    if (selected && selected.length > 0) {
-        // construct tree
-        let blockMap: Map<number, BlockEntity> = new Map<number, BlockEntity>();
-        for (let blockEntity of selected) {
-            if (blockMap.has(blockEntity.parent.id)) {
-                let parentBlockEntity = blockMap.get(blockEntity.parent.id);
-                if (parentBlockEntity) {
-                    if (!parentBlockEntity.children) {
-                        parentBlockEntity.children = [];
-                    }
-                    parentBlockEntity.children.push(blockEntity)
-                    blockMap.set(blockEntity.id, blockEntity);
-                }
-            } else {
-                blockMap.set(blockEntity.id, blockEntity);
-                originBlocks.push(blockEntity)
+    const originSelectedBlocks = await logseq.Editor.getSelectedBlocks();
+    console.log(originSelectedBlocks)
+    return await optimizeSelectedBlocks(originSelectedBlocks);
+}
+
+function getBlockEntityUUID(blockEntity: BlockEntity | BlockUUIDTuple): BlockUUID {
+    // 检查 blockEntity 是否为 BlockEntity 类型
+    if ('uuid' in blockEntity) {
+        // 如果是 BlockEntity 类型，直接返回 uuid
+        return blockEntity.uuid;
+    } else {
+        // 否则，blockEntity 应该是 BlockUUIDTuple 类型
+        // 返回元组的第二个元素，即 uuid
+        return blockEntity[1];
+    }
+}
+
+async function buildBlockEntityTree(blockEntity: BlockEntity | BlockUUIDTuple, visitSet: Set<String>): Promise<BlockEntity | null> {
+    let newBlockEntity = await logseq.Editor.getBlock(getBlockEntityUUID(blockEntity));
+    if (!newBlockEntity || visitSet.has(newBlockEntity.uuid)) {
+        return null;
+    }
+    visitSet.add(newBlockEntity.uuid);
+    let newChildren = [];
+    if (newBlockEntity.children) {
+        for (let child of newBlockEntity.children) {
+            let newChild = await buildBlockEntityTree(child, visitSet);
+            if (newChild) {
+                newChildren.push(newChild);
             }
         }
     }
-    return originBlocks;
+    newBlockEntity.children = newChildren;
+    return newBlockEntity;
+}
+async function splitModeAction(selectedBlockEntities: BlockEntity[], transformerContext: TransformerContext) {
+    let blockTreeNodes = await splitBlocksToTree(selectedBlockEntities, transformerContext)
+    await modifyBlockAsTree(selectedBlockEntities, blockTreeNodes);
 }
 
-export async function transformAction(originBlocks: BlockEntity[]) {
-    await logseq.UI.showMsg('start block transformer')
+export async function transformAction(selectedBlockEntities: BlockEntity[]) {
+    await logseq.UI.showMsg('start block transformer in transformMode: ' + logseq.settings?.transformMode)
     let transformerContext = new TransformerContext();
-    transformerContext.transformAction = 'split'
+    transformerContext.transformMode = logseq.settings?.transformMode;
     transformerContext.splitCodeBlock = logseq.settings?.splitCodeBlock;
     transformerContext.removeEmptyLine = logseq.settings?.removeEmptyLine;
+    transformerContext.orderedToNonOrdered = logseq.settings?.orderedToNonOrdered;
+    transformerContext.removeTailPunctuation = logseq.settings?.removeTailPunctuation;
 
-    let blockTreeNodes = await transformBlocksToTree(originBlocks, transformerContext);
-    console.log(blockTreeNodes);
-    console.log(originBlocks);
-    await modifyBlockAsTree(originBlocks, blockTreeNodes);
+    console.log("selectedBlockEntities", selectedBlockEntities)
+
+    switch (transformerContext.transformMode) {
+        case 'split':
+            await splitModeAction(selectedBlockEntities, transformerContext);
+            break;
+        case 'header':
+            await headerModeAction(selectedBlockEntities, transformerContext)
+            break;
+        case 'split+header':
+            await splitModeAction(selectedBlockEntities, transformerContext);
+            selectedBlockEntities = await optimizeSelectedBlocks(selectedBlockEntities);
+            await headerModeAction(selectedBlockEntities, transformerContext)
+            break;
+        default:
+            break;
+    }
 }

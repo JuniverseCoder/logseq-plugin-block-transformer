@@ -17,6 +17,12 @@ let App: React.FC<AppProps> = (props) => {
                 transformAction(props.selectedBlocks)
             }
         }><span className="underline-and-enlarge">T</span>ransform block</Button>
+        <Button className="transform_button" type="primary" onClick={
+            () => {
+                logseq.hideMainUI()
+                transformAction(props.selectedBlocks)
+            }
+        }><span className="underline-and-enlarge">H</span>eader</Button>
         {/*<Button className="transform_button" type="primary" onClick={*/}
         {/*    () => {*/}
         {/*        logseq.hideMainUI()*/}

@@ -1,6 +1,6 @@
 {
   "name": "logseq-plugin-block-transformer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "a plugin to transform block in logseq",
   "main": "dist/index.html",
   "targets": {

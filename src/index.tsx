@@ -8,7 +8,16 @@ import {
 } from "./block_handler";
 import React from "react";
 
+let transformMode = ["split", "header", "split+header"];
 let settings: SettingSchemaDesc[] = [
+    {
+        key: "transformMode",
+        title: 'Transform mode',
+        type: "enum",
+        enumChoices: transformMode,
+        default: "split",
+        description: ''
+    },
     {
         key: "removeEmptyLine",
         title: 'Whether to remove empty line',
@@ -31,6 +40,13 @@ let settings: SettingSchemaDesc[] = [
         description: ''
     },
     {
+        key: "removeTailPunctuation",
+        title: 'remove tailing punctuation marks in header',
+        type: "boolean",
+        default: true,
+        description: ''
+    },
+    {
         key: "transformShortcut",
         title: 'Keyboard shortcut to transform block',
         type: "string",
@@ -38,8 +54,8 @@ let settings: SettingSchemaDesc[] = [
         description: ''
     },
     {
-        key: "transformToolboxShortcut",
-        title: 'Keyboard shortcut to transform toolbox',
+        key: "transformModeShortcut",
+        title: 'Keyboard shortcut to switch transform mode',
         type: "string",
         default: "ctrl+shift+t",
         description: ''
@@ -61,11 +77,10 @@ async function main() {
         mode: 'global',
         binding: logseq.settings?.transformToolboxShortcut,
     }, async () => {
-        let selectedBlocks = await getSelectedBlocks();
-        root.render(<React.StrictMode>
-            <App selectedBlocks={selectedBlocks}/>
-        </React.StrictMode>);
-        logseq.showMainUI()
+        let currentMode = logseq.settings?.transformMode;
+        let newMode = transformMode[(transformMode.indexOf(currentMode) + 1) % transformMode.length];
+        logseq.updateSettings({"transformMode": newMode})
+        await logseq.UI.showMsg(`Switched to ${newMode} mode`);
     });
 }
 

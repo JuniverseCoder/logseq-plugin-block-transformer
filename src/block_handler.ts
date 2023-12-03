@@ -198,7 +198,7 @@ export async function splitBlocksToTree(blockEntities: BlockEntity[], transforme
                 }
             }
             // handle order list
-            else if (/^\s*[0-9]+\.\s/.test(line)) {
+            else if (/^\s*[0-9]+[.、．]\s*/.test(line)) {
                 let blockProperties: { [key: string]: string } = {};
                 if (!transformerContext.orderedToNonOrdered) {
                     blockProperties['logseq.order-list-type'] = 'number';
@@ -386,7 +386,6 @@ export async function transformAction(originBlocks: BlockEntity[]) {
     transformerContext.transformAction = 'split'
     transformerContext.splitCodeBlock = logseq.settings?.splitCodeBlock;
     transformerContext.removeEmptyLine = logseq.settings?.removeEmptyLine;
-    transformerContext.orderedToNonOrdered = logseq.settings?.orderedToNonOrdered;
 
     let blockTreeNodes = await transformBlocksToTree(originBlocks, transformerContext);
     console.log(blockTreeNodes);

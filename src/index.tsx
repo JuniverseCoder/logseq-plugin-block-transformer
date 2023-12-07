@@ -75,7 +75,7 @@ async function main() {
     });
     logseq.App.registerCommandShortcut({
         mode: 'global',
-        binding: logseq.settings?.transformToolboxShortcut,
+        binding: logseq.settings?.transformModeShortcut,
     }, async () => {
         let currentMode = logseq.settings?.transformMode;
         let newMode = transformMode[(transformMode.indexOf(currentMode) + 1) % transformMode.length];

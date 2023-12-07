@@ -95,6 +95,10 @@ async function splitBlocksToTree(blockEntities: BlockEntity[], transformerContex
             if (blankNum == line.length && transformerContext.removeEmptyLine) {
                 continue;
             }
+            // filter collapsed property line
+            if (line.startsWith("collapsed:: ")) {
+                continue;
+            }
 
 
             // handle lines

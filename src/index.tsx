@@ -40,10 +40,24 @@ let settings: SettingSchemaDesc[] = [
         description: ''
     },
     {
+        key: "boldToHeader",
+        title: 'Whether to convert bold text to header',
+        type: "boolean",
+        default: false,
+        description: ''
+    },
+    {
         key: "removeTailPunctuation",
         title: 'remove tailing punctuation marks in header',
         type: "boolean",
         default: true,
+        description: ''
+    },
+    {
+        key: "maxHeaderLevel",
+        title: 'max header level to transform',
+        type: "number",
+        default: 4,
         description: ''
     },
     {

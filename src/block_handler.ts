@@ -23,6 +23,8 @@ export class TransformerContext {
     public splitCodeBlock = true;
     public orderedToNonOrdered = false;
     public removeTailPunctuation: boolean = true;
+    public boldToHeader: boolean = false;
+    public maxHeaderLevel: number = 4;
 }
 
 function camelToKebab(str: string) {
@@ -269,14 +271,14 @@ function getContent(blockEntity: BlockEntity) {
     if (!blockEntity.properties) {
         return blockEntity.content
     }
-    let propertiesLines: string[] = []
-    Object.entries(blockEntity.properties).forEach(([key, value]) => {
-        propertiesLines.push(camelToKebab(key) + ':: ')
-    })
+    // let propertiesLines: string[] = []
+    // Object.entries(blockEntity.properties).forEach(([key, value]) => {
+    //     propertiesLines.push(camelToKebab(key) + ':: ')
+    // })
     let lines = blockEntity.content.split(/\r\n|\n|\r/);
     // exclude properties lines by prefix
     lines = lines.filter(line =>
-        !propertiesLines.some(propertyLine => line.startsWith(propertyLine))
+        !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:: /i.test(line)
     );
     return lines.join('\n')
 }
@@ -287,11 +289,13 @@ async function headerModeAction(blockEntities: BlockEntity[], transformerContext
         if (headerLevel < 0) {
             headerLevel = await getHeaderLevelByParent(blockEntity);
         }
+        headerLevel = Math.min(headerLevel, transformerContext.maxHeaderLevel);
 
         // is header
         let content = getContent(blockEntity);
-        let is_header = !/[\r\n]/.test(content) && (/^\s*#+\s/.test(content) || /^\s*\*\*.*\*\*[,.:;!?:\s，。：；！？：]*$/.test(content));
-        if (is_header) {
+        let is_header = !/[\r\n]/.test(content) && /^\s*#+\s/.test(content);
+        let is_bold_header = transformerContext.boldToHeader && !/[\r\n]/.test(content) && /^\s*\*\*.*\*\*[,.:;!?:\s，。：；！？：]*$/.test(content)
+        if (is_header || is_bold_header) {
             let newContent = content;
             newContent = newContent.replace(/^\s*#+\s/, "");
             newContent = newContent.replace(/^\s*\*\*(.*)\*\*/, "$1");
@@ -488,6 +492,8 @@ export async function transformAction(selectedBlockEntities: BlockEntity[]) {
     transformerContext.removeEmptyLine = logseq.settings?.removeEmptyLine;
     transformerContext.orderedToNonOrdered = logseq.settings?.orderedToNonOrdered;
     transformerContext.removeTailPunctuation = logseq.settings?.removeTailPunctuation;
+    transformerContext.boldToHeader = logseq.settings?.boldToHeader;
+    transformerContext.maxHeaderLevel = logseq.settings?.maxHeaderLevel;
 
     console.log("selectedBlockEntities", selectedBlockEntities)
 

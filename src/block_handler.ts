@@ -278,8 +278,9 @@ function getContent(blockEntity: BlockEntity) {
     let lines = blockEntity.content.split(/\r\n|\n|\r/);
     // exclude properties lines by prefix
     lines = lines.filter(line =>
-        !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:: /i.test(line)
+        !/^[a-z][a-z0-9]*(?:[-.][a-z0-9]+)*:: /i.test(line)
     );
+    console.log(lines)
     return lines.join('\n')
 }
 
@@ -462,6 +463,7 @@ function getBlockEntityUUID(blockEntity: BlockEntity | BlockUUIDTuple): BlockUUI
 
 async function buildBlockEntityTree(blockEntity: BlockEntity | BlockUUIDTuple, visitSet: Set<String>): Promise<BlockEntity | null> {
     let newBlockEntity = await logseq.Editor.getBlock(getBlockEntityUUID(blockEntity));
+    console.log(newBlockEntity)
     if (!newBlockEntity || visitSet.has(newBlockEntity.uuid)) {
         return null;
     }

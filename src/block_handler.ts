@@ -192,14 +192,14 @@ async function splitBlocksToTree(blockEntities: BlockEntity[], transformerContex
                 }
             }
             // handle order list
-            else if (/^\s*[0-9]+[.、．]\s*/.test(line)) {
+            else if (/^\s*([0-9]+|[A-z])[.、．]\s*/.test(line)) {
                 let blockProperties: { [key: string]: string } = {};
                 if (!transformerContext.orderedToNonOrdered) {
                     blockProperties['logseq.order-list-type'] = 'number';
                 }
                 let blockTreeNode = {
                     refBlock: undefined,
-                    content: line.replace(/^\s*[0-9]+[.、．]\s*/, ''),
+                    content: line.replace(/^\s*([0-9]+|[A-z])[.、．]\s*/, ''),
                     children: [],
                     properties: blockProperties,
                     blankLevel: blankLevel
@@ -278,7 +278,7 @@ function getContent(blockEntity: BlockEntity) {
     let lines = blockEntity.content.split(/\r\n|\n|\r/);
     // exclude properties lines by prefix
     lines = lines.filter(line =>
-        !/^[a-z][a-z0-9]*(?:[-.][a-z0-9]+)*:: /i.test(line)
+        !/^\s*[a-z][a-z0-9]*(?:[-.][a-z0-9]+)*:: /i.test(line)
     );
     console.log(lines)
     return lines.join('\n')
@@ -304,6 +304,10 @@ async function headerModeAction(blockEntities: BlockEntity[], transformerContext
             // remove tail punctuation
             if (transformerContext.removeTailPunctuation) {
                 newContent = newContent.replace(/[,.:;!?:\s，。：；！？：]*$/, "");
+            }
+            // remove serial number
+            if (transformerContext.orderedToNonOrdered){
+                newContent = newContent.replace(/^\s*([0-9]+|[A-z]+|[一二三四五六七八九十零]+)[.、．]\s*(.*)$/, "$2");
             }
             // add header by header level
             newContent = " " + newContent.trim();

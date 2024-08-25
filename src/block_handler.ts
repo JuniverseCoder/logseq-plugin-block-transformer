@@ -192,14 +192,14 @@ async function splitBlocksToTree(blockEntities: BlockEntity[], transformerContex
                 }
             }
             // handle order list
-            else if (/^\s*([0-9]+|[A-z])[.、．]\s*/.test(line)) {
+            else if (/^\s*([0-9]+|[A-z]+|[一二三四五六七八九十零]+)[.、．]\s*/.test(line)) {
                 let blockProperties: { [key: string]: string } = {};
                 if (!transformerContext.orderedToNonOrdered) {
                     blockProperties['logseq.order-list-type'] = 'number';
                 }
                 let blockTreeNode = {
                     refBlock: undefined,
-                    content: line.replace(/^\s*([0-9]+|[A-z])[.、．]\s*/, ''),
+                    content: line.replace(/^\s*([0-9]+|[A-z]+|[一二三四五六七八九十零]+)[.、．]\s*/, ''),
                     children: [],
                     properties: blockProperties,
                     blankLevel: blankLevel

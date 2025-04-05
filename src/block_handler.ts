@@ -207,10 +207,10 @@ async function splitBlocksToTree(blockEntities: BlockEntity[], transformerContex
                 is_first = appendNewBlockTreeNode(blockTreeNode, is_first, blockEntity, lastBlockTreeNodes);
             }
             // handle normal list
-            else if (/^\s*-\s/.test(line)) {
+            else if (/^\s*[-*]\s/.test(line)) {
                 let blockTreeNode = {
                     refBlock: undefined,
-                    content: line.replace(/^\s*-\s/, ''),
+                    content: line.replace(/^\s*[-*]\s/, ''),
                     children: [],
                     properties: {},
                     blankLevel: blankLevel

@@ -17,8 +17,22 @@ class VisitContext {
 }
 
 
+export interface TransformMode {
+    id: number;
+    name: string;
+    useSplit: boolean;
+    useHeader: boolean;
+    removeEmptyLine: boolean;
+    splitCodeBlock: boolean;
+    orderedToNonOrdered: boolean;
+    removeTailPunctuation: boolean;
+    boldToHeader: boolean;
+    maxHeaderLevel: number;
+}
+
 export class TransformerContext {
-    public transformMode = 'split';
+    public useSplit = true;
+    public useHeader = false;
     public removeEmptyLine = true;
     public splitCodeBlock = true;
     public orderedToNonOrdered = false;
@@ -295,7 +309,7 @@ async function headerModeAction(blockEntities: BlockEntity[], transformerContext
         // is header
         let content = getContent(blockEntity);
         let is_header = !/[\r\n]/.test(content) && /^\s*#+\s/.test(content);
-        let is_bold_header = transformerContext.boldToHeader && !/[\r\n]/.test(content) && /^\s*\*\*.*\*\*[,.:;!?:\s，。：；！？：]*$/.test(content)
+        let is_bold_header = transformerContext.boldToHeader && !/[\r\n]/.test(content) && /^\s*\*\*([^*]+)\*\*[,.:;!?:\s，。：；！？：]*$/.test(content)
         if (is_header || is_bold_header) {
             let newContent = content;
             newContent = newContent.replace(/^\s*#+\s/, "");
@@ -438,7 +452,7 @@ async function optimizeSelectedBlocks(originSelectedBlocks: Array<BlockEntity> |
     return selectedBlocks;
 }
 
-export async function getSelectedBlocks() {
+export async function exitEditingMode() {
     // exit editing mode
     // editing mode modify block have bug:cannot update when cursor is at the end
     let isEditing = await logseq.Editor.checkEditing();
@@ -447,8 +461,16 @@ export async function getSelectedBlocks() {
         // sleep to prevent ui bug
         await new Promise(resolve => setTimeout(resolve, 100));
     }
+}
 
-    const originSelectedBlocks = await logseq.Editor.getSelectedBlocks();
+export async function getSelectedBlocks() {
+    let originSelectedBlocks = await logseq.Editor.getSelectedBlocks();
+    if (!originSelectedBlocks || originSelectedBlocks.length === 0) {
+        const currentBlock = await logseq.Editor.getCurrentBlock();
+        if (currentBlock) {
+            originSelectedBlocks = [currentBlock];
+        }
+    }
     console.log(originSelectedBlocks)
     return await optimizeSelectedBlocks(originSelectedBlocks);
 }
@@ -491,31 +513,65 @@ async function splitModeAction(selectedBlockEntities: BlockEntity[], transformer
 }
 
 export async function transformAction(selectedBlockEntities: BlockEntity[]) {
-    await logseq.UI.showMsg('start block transformer in transformMode: ' + logseq.settings?.transformMode)
+    const activeModeId = logseq.settings?.activeModeId;
+    const transformModes = logseq.settings?.transformModes;
+
+    if (!transformModes || transformModes.length === 0) {
+        await logseq.UI.showMsg('No transform modes configured.', 'error');
+        return;
+    }
+
+    let activeMode = transformModes.find((m: any) => m.id === activeModeId);
+    if (!activeMode) {
+        activeMode = transformModes;
+    }
+
+    await logseq.UI.showMsg('start block transformer in transformMode: ' + activeMode.name)
     let transformerContext = new TransformerContext();
-    transformerContext.transformMode = logseq.settings?.transformMode;
-    transformerContext.splitCodeBlock = logseq.settings?.splitCodeBlock;
-    transformerContext.removeEmptyLine = logseq.settings?.removeEmptyLine;
-    transformerContext.orderedToNonOrdered = logseq.settings?.orderedToNonOrdered;
-    transformerContext.removeTailPunctuation = logseq.settings?.removeTailPunctuation;
-    transformerContext.boldToHeader = logseq.settings?.boldToHeader;
-    transformerContext.maxHeaderLevel = logseq.settings?.maxHeaderLevel;
+    Object.assign(transformerContext, activeMode);
 
     console.log("selectedBlockEntities", selectedBlockEntities)
 
-    switch (transformerContext.transformMode) {
-        case 'split':
-            await splitModeAction(selectedBlockEntities, transformerContext);
-            break;
-        case 'header':
-            await headerModeAction(selectedBlockEntities, transformerContext)
-            break;
-        case 'split+header':
-            selectedBlockEntities = await splitModeAction(selectedBlockEntities, transformerContext);
-            selectedBlockEntities = await optimizeSelectedBlocks(selectedBlockEntities);
-            await headerModeAction(selectedBlockEntities, transformerContext)
-            break;
-        default:
-            break;
+    if (transformerContext.useSplit) {
+        selectedBlockEntities = await splitModeAction(selectedBlockEntities, transformerContext);
+        selectedBlockEntities = await optimizeSelectedBlocks(selectedBlockEntities);
+    }
+    if (transformerContext.useHeader) {
+        await headerModeAction(selectedBlockEntities, transformerContext);
+    }
+}
+async function updateHeadingProperty(blockUuid: BlockUUID, level: number) {
+    if (level > 0) {
+        await logseq.Editor.upsertBlockProperty(blockUuid, 'heading', level);
+    } else {
+        const heading = await logseq.Editor.getBlockProperty(blockUuid, 'heading');
+        if (heading) {
+            await logseq.Editor.removeBlockProperty(blockUuid, 'heading');
+        }
+    }
+}
+
+
+export async function changeHeadingLevel(level: number) {
+    const selectedBlocks = await getSelectedBlocks();
+    if (selectedBlocks && selectedBlocks.length > 0) {
+        for (const blockEntity of selectedBlocks) {
+            let content = getContent(blockEntity);
+            // Remove existing heading
+            content = content.replace(/^[#\r\n\s]*/, '');
+            if (level > 0) {
+                // Add new heading
+                content = '#'.repeat(level) + ' ' + content;
+            }
+            var properties = convertBlockProperties(blockEntity.properties)
+            if (level > 0) {
+                properties.heading = level;
+            } else {
+                if (properties.heading) {
+                    delete properties.heading;
+                }
+            }
+            await logseq.Editor.updateBlock(blockEntity.uuid, content, {properties: properties});
+        }
     }
 }

@@ -33,3 +33,13 @@ body, html {
     text-decoration: underline;
     font-size: 60px;
 }
+
+.floating-panel {
+  position: absolute;
+  z-index: 1000;
+  background-color: white;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}

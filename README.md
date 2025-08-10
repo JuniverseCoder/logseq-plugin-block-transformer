@@ -49,12 +49,17 @@ The available shortcuts are:
 ## Usage
 
 1.  **Select Blocks**: Choose one or more blocks in Logseq that you want to transform.
-2.  **Open Toolbar**: Click the **Block Transformer** icon in the Logseq toolbar. This will open a panel where you can manage and customize transformation modes.
-3.  **Configure Modes**: In the panel, you can:
-    *   **Switch between modes**: Select the active transformation mode from a list of presets (e.g., "Split", "Header", "Full").
+2.  **Transform**: Press the transform shortcut (`ctrl+t` by default) to apply the currently active mode's settings to your selected blocks. You can also switch between modes quickly using `ctrl+shift+t`.
+
+## Transform Modes
+
+To customize how the transformation works, you can configure different modes.
+
+1.  **Open Toolbar**: Click the **Block Transformer** icon in the Logseq toolbar. This will open a panel where you can manage and customize transformation modes.
+2.  **Configure Modes**: In the panel, you can:
+    *   **Switch between modes**: Select the active transformation mode from a list of presets (e.g., "Split", "Header", "Full"). You can also switch between modes quickly using `ctrl+shift+t`.
     *   **Edit modes**: Adjust the settings for each mode, such as whether to split by lines, convert bold to headers, or handle code blocks.
     *   **Add/Remove modes**: Create new custom modes or delete existing ones to fit your workflow.
-4.  **Transform**: Once your modes are configured, press the transform shortcut (`ctrl+t` by default) to apply the currently active mode's settings to your selected blocks. You can also switch between modes quickly using `ctrl+shift+t`.
 
 This system allows for powerful customization directly from the UI, letting you define multiple transformation styles and switch between them easily.
 
